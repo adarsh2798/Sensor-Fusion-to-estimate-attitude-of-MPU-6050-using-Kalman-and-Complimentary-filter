@@ -1,0 +1,138 @@
+%------- section - 1: Interfacing IMU6050 sensor with Arduino Mega250 -------
+clc;
+clear all;
+% a = arduino(); %Update the name of communication port
+a = arduino('COM3', 'Mega2560', 'Libraries', 'I2C');
+fs = 20; % Sample Rate in Hz   
+imu = mpu6050(a,'SampleRate',fs,'OutputFormat','matrix'); 
+%%
+%------- section - 2: Reading the realtime data from IMU6050 sensor -------
+decim = 1;
+duration = 1; % seconds
+fs = 20;         % Hz
+N = duration*fs;
+i=0;
+
+accelR=[];
+gyroR=[];
+magR=[];
+openExample('shared_fusion_arduinoio/EstimateOrientationUsingInertialSensorFusionAndMPU9250Example')
+viewer_imuf = HelperOrientationViewer('Title',{'Visualization of imuf_Orientation'})
+viewer_CF = HelperOrientationViewer('Title',{'Visualization of CF_Orientation'})
+orientation_imuf = zeros(N,1,'quaternion');
+orientation_CF = zeros(N,1,'quaternion');
+angles_prev=[0,0,0];
+while i<N
+    
+    [accelReadings, gyroReadings,magReadings] = read(imu)
+    i=i+1;
+    accelR = [accelR;accelReadings];
+    gyroR = [gyroR;gyroReadings];
+    magR=[magR;magReadings];
+   
+    
+    
+    accel_pitch=asin(accelBody(:,1)/g);
+    %accel_pitch=atan2(-accelBody(1,1),sqrt(accelBody(1,2)^2 +accelBody(1,3)^2));
+    %accel_roll=atan2(accelBody(1,2),accelBody(1,3));
+    accel_roll=-asin(accelBody(:,2)./(g*cos(accel_pitch)));
+%     if accel_roll<0
+%         accel_roll=accel_roll+2*pi;
+%     end
+%     if accel_pitch<0
+%         accel_pitch=accel_pitch+2*pi;
+%     end
+    
+    
+    gyro_pitch=gyroBody(:,2)*(1/fs)+angles_prev(1,1);
+    gyro_roll=gyroBody(:,1)*(1/fs)+angles_prev(1,2);
+    gyro_yaw=gyroBody(:,3)*(1/fs)+angles_prev(1,3);
+    
+    accel_pitch_roll=0.98*[accel_pitch,accel_roll];
+    gyro_pitch_roll=0.02*[gyro_pitch,gyro_roll];
+    res_ag=accel_pitch_roll+gyro_pitch_roll;
+    
+    
+    R=[cos(res_ag(1,1)) sin(res_ag(1,1))*sin(res_ag(1,2)) sin(res_ag(1,1))*cos(res_ag(1,2)); 0 cos(res_ag(1,2)) -sin(res_ag(1,2));
+       -sin(res_ag(1,1)) sin(res_ag(1,2))*cos(res_ag(1,1)) cos(res_ag(1,1))*cos(res_ag(1,2))];
+    L_b_m=R*magBody';
+    mag_yaw=atan2(L_b_m(2,:),L_b_m(1,:));
+    mag_yaw=mag_yaw';
+    
+    res_mg=0.98*mag_yaw+0.02*gyro_yaw;
+    
+    res=[res_ag(1,1),res_ag(1,2),-res_mg];
+    
+    
+    angle=res;
+     angle_prev=angle;
+     
+     
+     
+    A=zeros(size(res,1),1);
+    B=zeros(size(res,1),1);
+    C=zeros(size(res,1),1);
+    D=zeros(size(res,1),1);
+    
+    for i=1:size(res,1)
+        v=res(i,:);
+        q1=[cos(v(1,3)/2),0,0,sin(v(1,3)/2)];
+        q2=[cos(v(1,1)/2),0,sin(v(1,1)/2),0];
+        q3=[cos(v(1,2)/2),sin(v(1,2)/2),0,0];
+        qmul=quatmultiply(q1,quatmultiply(q2,q3));
+        A(i,1)=qmul(1,1);
+        B(i,1)=qmul(1,2);
+        C(i,1)=qmul(1,3);
+        D(i,1)=qmul(1,4);
+        
+    end
+  
+    q=quaternion(A,B,C,D);
+    
+    % euler 321: yaw(z)-pitch(y)-roll(x)
+    
+    orientationDefault(i)=(q);
+    disp(magBody)
+    %orientationDefault(i) = aFilter(accelBody,gyroBody);
+    orientation_gt=orientationNED(i);
+    orientation_est=orientationDefault(i);
+    
+    
+    
+    
+    fuse = imufilter('SampleRate',fs,'DecimationFactor',decim);
+    orientation = fuse(accelR,gyroR);
+    
+    % 3D figure or Sensor
+    for j = numel(orientation)
+       viewer(orientation(j));
+    end
+    
+    orientationEuler = eulerd(orientation,'ZYX','frame');
+end
+
+N=N*10;
+timeVector = (0:(N-1))/fs;
+figure
+subplot(2,1,1)
+plot(timeVector,accelR)
+legend('X-axis','Y-axis','Z-axis')
+ylabel('Acceleration (m/s^2)')
+title('Accelerometer Readings')
+
+subplot(2,1,2)
+plot(timeVector,gyroR)
+legend('X-axis','Y-axis','Z-axis')
+ylabel('Angular Velocity (rad/s')
+xlabel('Time (s)')
+title('Gyroscope Readings')
+
+
+%3D curve
+figure
+plot3(orientationEuler(:,1),orientationEuler(:,2),orientationEuler(:,3))
+legend('Z-axis','Y-axis','X-axis')
+xlabel('Time (s)')
+ylabel('Rotation (degrees)')
+title('Estimated Orientation')
+

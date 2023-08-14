@@ -1,0 +1,189 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{amsmath}
+\usepackage{listings}
+\usepackage[linesnumbered,ruled,vlined]{algorithm2e}
+
+\usepackage[utf8]{inputenc}
+\usepackage{color} %red, green, blue, yellow, cyan, magenta, black, white
+\definecolor{mygreen}{RGB}{28,172,0} % color values Red, Green, Blue
+\definecolor{mylilas}{RGB}{170,55,241}
+\usepackage{url}
+\title{SENSOR FUSION USING KALMAN FILTER IN MATLAB}
+\author{V ADARSH (21307R001) \\ PRADEEP CHUDASAMA (213070111) }
+\date{}
+\usepackage[maxnames=10]{biblatex}
+\usepackage{hyperref}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+In this experiment sensor fusion was achieved in MATLAB using Kalman filter. An inertial measurement unit(IMU) was used, which was connected to Arduino for interfacing with PC. IMU's accelerometer and gyroscope readings were fused to get an accurate reading of pitch and roll angles to estimate orientation of IMU. The pitch action is a rotation of IMU about it's y-axis and roll action is rotation of IMU about it's x-axis.
+
+\section{Kalman Filter}
+Kalman Filter is an optimal state estimation technique. We are interested in knowing the internal states of a system, but in most practical cases states are not directly measurable , and only the output that comes out of the system can be measured directly by some sensors. One can develop the state space model of a system and find equations according to which state evolves but it requires that we know the EXACT value of initial state of a system because if initial state is known then the states at all future time can be accurately determined using the system model. But in reality, one cannot accurately determine initial state of a system which in turn means the states we calculate using system model are also not accurate and in fact are only an estimate of true state. To ensure these estimates are accurate one can examine how the output is affected by states and incorporate this effect in state estimation equation and correct the estimates. For this the system needs to be observable. This is what an observer does. It estimates the state using system dynamics and output. Consider a discrete system : \\ \\ 
+$x_k=Ax_{k-1}+Bu_k$\\ \\
+$z_k=Cx_k$\\ \\
+An observer equation looks like: \\ \\
+$\hat{x}_k=A\hat{x}_{k-1}+Bu_k+K(z_k-\hat{z}_k)$ \:\:\:\:\:\: (1)
+
+\\ \\ \\
+Here $\hat{x}$ is the state estimate. Observer estimates the state by using the system and model and incorporation of the effect of states on system output (the 3rd term in eq(1)). Kalman filter is a commonly used  observer that estimates the optimal value of 'K' in equation (1). \\ \\
+So, for kalman filter we need to develop a system model according to which state evolves. Using these equations we make a "prediction" of state at time state 'k'. Next we measure the system output $z_k$ and calculate the estimate of output $\hat{xz}_k$ using the predicted state. The term $z_k-\hat{z}_k$ is refereed to as Innovation in kalman filter literature. This innovation gives an idea of how accurate our state prediction is. Then we update the state estimate by incorporating this innovation using Kalman Gain 'K'. \\ \\
+Kalman filter estimates 'K' my minimizing the error covariance matrix $P$. $P$ is a covariance matrix whose elements are co-variances of the error vector which is the difference between true state and estimated state. \\ \\
+define $\Tilde{x}_k=x_k-\hat{x}_k$ as error in state estimate.\\ \\
+Then at $k^{th}$ time step the error covariance matrix is\\ \\
+$P_k=E[\Tilde{x}_k\Tilde{x}_k^T]$ \:\:\:\: (2)\\ \\
+Clearly the diagonal of $P_k$ contains the variances of the error. To minimize the error means minimizing the deviation of error $\Tilde{x}$ from its mean which in this case is 0 (since $E(\Tilde{x})=E(x)-E(\hat{x})=0$ since expected value of $\hat{x}$ is true value $x$). Hence kalman gain is calculated by minimizing the trace of $P_k$, meaning we are minimizing the deviation of estimated state from true state.
+\\ \\
+In kalman filter 2 models are needed, the process model which determines how states evolve and measurement model which determines how states affect output. From here onwards, for any variable $s$ we denote $\hat{s}$ as estimate of $s$, $\hat{s}^-$ as prior estimate of $s$ and $\hat{s}^+$ as updated estimate of $s$.
+\\ \\
+The process and measurement models are assumed to include gaussian noise with zero mean in them. These noises account for stochastic
+ nature or uncertainties in our model which may arise due to improper state modelling or some disturbances entering the system or some uncertainties present in sensor outputs. \\ \\
+ Denote process noise by $w_k$ and measurement noise by $v_k$, then $Q=E(w_kw_k^T)$ is the process noise covariance matrix and $R=E(v_kv_k^T)$ is the measurement noise covariance matrix. 
+\\ \\
+The process model is given as : \\ \\
+$x_k=A_{k-1}x_{k-1}+w_{k}$ ;  \:\:\:$w_k\sim N(0,Q)$\\ \\
+measurement model is:\\ \\ 
+$z_k=H_kx_k+v_k$\:\:\:; $v_k\sim N(0,R)$
+\\ \\ 
+The kalman filter algorithm is:\\ \\
+\begin{algorithm}
+%\DontPrintSemicolon % Some LaTeX compilers require you to use \dontprintsemicolon    instead
+
+\textbf{Initialize} $\hat{x}_0^+,P_0^+$ for $k=0$\\
+$k=k+1$\\
+\textbf{Prior estimate:} \linebreak
+%\renewcommand{\labelenumi}{(\Roman{enumi})}
+%\begin{enumerate}[noitemsep,nolistsep]
+%\item
+  $\hat{x}_k^-=A_{k-1}\hat{x}_{k-1}^+$ 
+\linebreak
+%\item 
+ $P_k^-=A_{k-1}P_{k-1}^+A_{k-1}^T+Q$\\
+%\end{enumerate}
+\textbf{Measurement of output:} \linebreak$z_k$\\
+\textbf{Innovation:}\linebreak $y_k=z_k-H_k\hat{x}_k^-$\\
+\textbf{Kalman gain:}\linebreak
+$K_k=P_k^-H_k^T(H_kP_k^-H_k^T+R)^{-1}$\\
+\textbf{Updated estimate:}\linebreak
+$\hat{x}_k^+=\hat{x}_k^-+K_ky_k$\linebreak
+$P_k^+=(I-K_kH_k)P_k^-$\\
+go to step 2\\
+
+\caption{KALMAN FILTER}
+\label{algo:b}
+\end{algorithm}
+\begin{figure}[htp]
+\begin{center}
+\makebox[\textwidth][c]{\includegraphics[width=1\textwidth]{Screenshot (67).png}} 
+\caption{Block diagram of Kalman filter}
+\end{center}
+
+\label{}
+\end{figure}
+\section{Implementation Details}
+We tried implementing 2 different methods. The $1^{st}$ method did not give proper results, hence we finally implemented the second one. We briefly describe the 2 methods in the following subsections.
+\subsection{Method-1}
+Here the state vector comprised of yaw,pitch and roll angles. The process model involves making a prior estimate using gyroscope data and then measurement model updates the estimate using accelerometer readings. Hence \\\\
+$x_k=\begin{bmatrix}
+\psi_k\\ 
+\theta_k\\ 
+\phi_k
+\end{bmatrix}$ \\\\
+If $w_k=[w_{x},w_{y},w_{z}]^T$ is the angular velocity obtained from gyroscope, we define the input $u_{k-1}$ as:\\\\
+$u_{k-1}=\begin{bmatrix}
+ w_{x}\Delta t \\ 
+w_{y}\Delta t\\ 
+w_{z}\Delta t
+\end{bmatrix}$ \\ \\
+The process model can be defined as:\\\\
+$x_k=x_{k-1}+u_{k-1}+w_k$\\ \\
+Here $A_{k-1}=I_3$\\ \\
+The next step is to develop measurement model. Here measurement is  readings from accelerometer.\\\\
+$z_k=\begin{bmatrix}
+ a_{x} \\ 
+a_{y}\\ 
+a_{z}
+\end{bmatrix}$.\\\\
+After estimating states using process model we can use those yaw,pitch and roll angles to find the rotation matrix,\\\\
+$ R=\begin{bmatrix}
+cos\theta cos\psi  & cos\theta sin\psi & -sin\theta\\ 
+ cos\psi sin\theta sin\phi-sin\psi cos\phi& sin\psi sin\theta sin\phi+cos\psi cos\phi & sin\phi cos\theta\\ 
+ cos\psi sin\theta cos\phi+sin\psi sin\phi& sin\psi sin\theta cos\phi-cos\psi sin\phi & cos\phi cos\theta
+\end{bmatrix}$ \\\\
+Then we can relate the states to the output by:\\\\
+$\hat{z}_k=R\begin{bmatrix}
+ 0 \\ 
+0\\ 
+g
+\end{bmatrix}$\\\\
+$\Rightarrow\hat{z}_k=\begin{bmatrix}
+-gsin\theta\\ 
+gsin\phi cos\theta\\ 
+gcos\phi cos\theta
+\end{bmatrix}$\\\\
+This is a nonlinear equation of states. We hence lienarize this to find the measurement matrix $H_k$ as:\\\\
+$H_k=\begin{bmatrix}
+0 &-gcos\theta  &0 \\ 
+0 & -gsin\phi sin\theta &gcos\phi cos\theta \\ 
+ 0& -gcos\phi sin\theta & -g sin\phi cos\theta
+\end{bmatrix}$\\\\
+So the measurement model is:\\\\
+$z_k=H_kx_k+v_k$\\\\
+As states earlier, this implementation method did not give proper results. The problem we faced was the estimated yaw,pitch and roll angles were very noisy and further the values of yaw, pitch and roll were underestimated, as in the estimated angles were 30-40 degrees off by the actual values. Section-5 presents the plots of yaw,pitch and roll angles with respect to time, where this problem can be easily seen.\\ \\
+The noisy behaviour can be due to the fact that accelerometer not only measures acceleration due to gravity but also linear acceleration which is caused due to motion of sensor and other vibrations. This can be modelled as high frequency noise which caused the noisy behaviour of estimates. The underestimation is mainly due to the gyro zero rate offset. Basically  gyroscope when no motion is present outputs some small value which is not exactly 0, and this offset gets accumulated over time which causes the high drift in estimated angles.
+\subsection{Method-2}
+The method implemented here is the same method implemented in [1]. For detailed explanation one can refer [1]. Here we provide a brief summary of the same.\\\ \\
+To overcome method-1's problems , here we include the gyro offset and linear acceleration also along with the 3 angles to be estimated.\\ \\
+The process model models the error process:\\ \\
+$x_{\varepsilon , k}=A_{k-1}x_{\varepsilon , k-1}+w_k$\\\\
+$\Rightarrow x_{\varepsilon,k}=\begin{bmatrix}
+o_{\varepsilon,k}\\ 
+b_{\varepsilon,k}\\ 
+_{}^{S}\textrm{a}_{\varepsilon,k}
+\end{bmatrix}=A_{k-1}\begin{bmatrix}
+o_{\varepsilon,k-1}\\ 
+b_{\varepsilon,k-1}\\ 
+_{}^{S}\textrm{a}_{\varepsilon,k-1}
+\end{bmatrix}+w_k$\\\\\\\\
+where $x_{\varepsilon,k}$ is a 9x1 state vector comprising:\\
+\begin{itemize}
+    \item $o_{\varepsilon,k}$: $o$ is a 3x1 vector orientation vector comprising of roll,pitch and yaw angles. So $o_{\varepsilon,k}$ is the 3x1 orientation error vector at time step $k$ which defines the angle by which estimated value exceeds true value.
+    \item $b_{\varepsilon,k}$: it is a 3x1 vector representing gyro 
+ zero rate offset for x,y,z axes. 
+ \item $_{}^{S}\textrm{a}_{\varepsilon,k}$: it is a 3x1 vector that represents the error in estimation of linear acceleration in sensor frame
+\end{itemize}\\\\
+It is assumed that the error in state estimation is independent of error in previous time step. Hence $A_{k-1}=0$. This means the prior estimate of error is taken as 0, i.e $x_{\varepsilon,k}^-=0$\\\\
+Next we develop measurement model. The measurement in this case is the difference of the gravity vector in sensor frame measured by  gyroscope and accelerometer. Let $_{}^{S}\textrm{g}_{G,k}$ be the gravity vector in sensor frame calculated using gyroscope readings and $_{}^{S}\textrm{g}_{A,k}$ be gravity vector in sensor frame which are nothing but accelerometer readings. Then\\\\
+$z_k=_{}^{S}\textrm{g}_{G,k}-_{}^{S}\textrm{g}_{A,k}$.\\\\
+Let $w_k \in \mathbb{R}^3$ be the gyroscope readings, and $b_k \in \mathbb{R}^3$ be the gyroscope drift. To compensate for drift we need to subtract this from gyroscope readings. If $o_k$ is the orientation in prevoius time step, then \\\\
+$\Delta o_k=(w-b_k)dt$\\\\
+The new orientation calculated is:\\\\
+$o_k=o_k+\Delta o$\\\\
+Using the new orientation one can find the rotation matrix $R$ and use it to find:\\\\
+$_{}^{S}\textrm{g}_{G,k}=R\begin{bmatrix}
+0\\ 
+0\\ 
+g
+\end{bmatrix}$\\\\
+Let $_{}^{S}\textrm{a}_{k}$ be the current linear acceleration, and $a=[a_x,a_y,a_z]$ be accelerometer readings then :\\\\
+$_{}^{S}\textrm{g}_{A,k}=a-_{}^{S}\textrm{a}_{k}$\\\\
+The measurement matrix $H_k$ relates the 9x1 state vector to $z_k$, and it's derivation can be found in [1]. Let $_{}^{S}\textrm{g}_{G,k}=[g_x,g_y,g_z]^T$, then\\\\
+$H=\begin{bmatrix}
+0 &g_z  &-g_y  &0  &-g_z\Delta t  &g_y\Delta t  &1  &0  &0 \\ 
+-g_z &0  &g_x  &g_z\Delta t  &0  &-g_x\Delta t  &0  &1  &0 \\ 
+g_y & -g_x &0  &-g_y\Delta t  &g_x\Delta t  &0  &0  &0  &1 
+\end{bmatrix}$\\\\
+Once the posterior estimate of state, $x_{\varepsilon,k}^+$ is found, we use this to update the orientation, $o_k$, gyro offset $b_k$ and linear acceleration $_{}^{S}\textrm{a}_{k}$.
+\begin{enumerate}
+    \item $o_k=o_{k-1}+x_{\varepsilon,k}^+(1:3)$
+    \item $b_k=b_{k-1}-x_{\varepsilon,k}^+(4:6)$
+    \item Linear acceleration is modelled as:\\\\
+    $_{}^{S}\textrm{a}_{k}=c(_{}^{S}\textrm{a}_{k-1})$, where $c \in [0,1]$ is decay factor. Once we find posterior error estimate we can update this as:\\ \\
+    $_{}^{S}\textrm{a}_{k}=c(_{}^{S}\textrm{a}_{k-1})-x_{\varepsilon,k}^+(7:9)$\\\\
+    Since this method includes estimation of linear acceleration nd gyro offset, it yields much better results, which can be seen in Section-5.
+\end{enumerate}
+\end{document}

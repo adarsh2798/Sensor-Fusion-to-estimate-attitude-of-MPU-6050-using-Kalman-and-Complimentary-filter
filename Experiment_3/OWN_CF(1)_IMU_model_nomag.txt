@@ -1,0 +1,97 @@
+
+clc;
+g=-9.8;
+load y120p60r30.mat motion fs
+viewer_gt = HelperOrientationViewer('Title',{'Visualization of true Orientation'});
+viewer_est = HelperOrientationViewer('Title',{'Visualization of estimated Orientation'});
+
+
+accNED = motion.Acceleration;
+angVelNED = motion.AngularVelocity;
+orientationNED = motion.Orientation;
+
+numSamples = size(motion.Orientation,1);
+t = (0:(numSamples-1)).'/fs;
+IMU = imuSensor('accel-gyro','SampleRate',fs);
+disp(orientationNED)
+aFilter = imufilter('SampleRate',fs);
+IMU.Accelerometer = accelparams( ...
+    'MeasurementRange',19.62, ...
+    'Resolution',0.00059875, ...
+    'ConstantBias',0.4905, ...
+    'AxesMisalignment',2, ...
+    'NoiseDensity',0.003924, ...
+    'BiasInstability',0, ...
+    'TemperatureBias', [0.34335 0.34335 0.5886], ...
+    'TemperatureScaleFactor',0.02);
+IMU.Gyroscope = gyroparams( ...
+    'MeasurementRange',4.3633, ...
+    'Resolution',0.00013323, ...
+    'AxesMisalignment',2, ...
+    'NoiseDensity',8.7266e-05, ...
+    'TemperatureBias',0.34907, ...
+    'TemperatureScaleFactor',0.02, ...
+    'AccelerationBias',0.00017809, ...
+    'ConstantBias',[0.3491,0.5,0]);
+
+orientationDefault = zeros(numSamples,1,'quaternion');
+angles_prev=[0,0,0];
+for i = 1:numSamples
+
+    [accelBody,gyroBody] = IMU(accNED(i,:),angVelNED(i,:),orientationNED(i,:));
+    
+    accel_pitch=asin(accelBody(1,1)/g);
+    %accel_pitch=atan2(-accelBody(1,1),sqrt(accelBody(1,2)^2 +accelBody(1,3)^2));
+    %accel_roll=atan2(accelBody(1,2),accelBody(1,3));
+    accel_roll=-asin(accelBody(1,2)/(g*cos(accel_pitch)));
+%     if accel_roll<0
+%         accel_roll=accel_roll+2*pi;
+%     end
+%     if accel_pitch<0
+%         accel_pitch=accel_pitch+2*pi;
+%     end
+    accel_yaw=0;
+    
+    gyro_pitch=gyroBody(1,2)*(1/fs)+angles_prev(1,1);
+    gyro_roll=gyroBody(1,1)*(1/fs)+angles_prev(1,2);
+    gyro_yaw=gyroBody(1,3)*(1/fs)+angles_prev(1,3);
+    
+    accel=0.98*[accel_pitch,accel_roll,accel_yaw];
+    gyro=0.02*[gyro_pitch,gyro_roll,(1/0.02)*gyro_yaw];
+  
+    angle=accel+gyro;
+    angle_prev=angle;
+    
+%     q1=[cos(angle(1,1)/2),sin(angle(1,1)/2),0,0];
+%     q2=[cos(angle(1,2)/2),0,sin(angle(1,2)/2),0];
+%     q3=[cos(angle(1,3)/2),0,0,sin(angle(1,3)/2)];
+  q1=[cos(angle(1,3)/2),0,0,sin(angle(1,3)/2)];
+    q2=[cos(angle(1,1)/2),0,sin(angle(1,1)/2),0];
+    q3=[cos(angle(1,2)/2),sin(angle(1,2)/2),0,0];
+    % euler 321: yaw(z)-pitch(y)-roll(x)
+    q=quatmultiply(q1,quatmultiply(q2,q3));
+    orientationDefault(i)=quaternion(q);
+
+    %orientationDefault(i) = aFilter(accelBody,gyroBody);
+    orientation_gt=orientationNED(i);
+    orientation_est=orientationDefault(i);
+    for j = numel(orientation_gt)
+        viewer_gt(orientation_gt(j));
+        viewer_est(orientation_est(j));
+     end
+end
+release(aFilter)
+
+figure(2)
+plot(t,eulerd(orientationDefault,'ZYX','frame'))
+xlabel('Time (s)')
+ylabel('Rotation (degrees)')
+title('Orientation Estimation -- Realistic IMU Data, Default IMU Filter')
+legend('Z-axis','Y-axis','X-axis')
+
+figure(3)
+plot(t,eulerd(orientationNED,'ZYX','frame'))
+xlabel('Time (s)')
+ylabel('Rotation (degrees)')
+title('Orientation---ground truth')
+legend('Z-axis','Y-axis','X-axis')

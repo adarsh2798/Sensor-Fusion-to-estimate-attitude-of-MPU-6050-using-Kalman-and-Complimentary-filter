@@ -1,0 +1,24 @@
+clc
+syms q0 q1 q2 q3 v1 v2 v3 g real
+
+% q0 = sym('q0','real');
+% q1 = sym('q1','real');
+% q2 = sym('q2','real');
+% q3 = sym('q3','real');
+% v1 = sym('v1','real');
+% v2 = sym('v2','real');
+% v3 = sym('v3','real');
+% syms q0 q1 q2 q3 v1 v2 v3
+
+q=[q0,q1,q2,q3];
+v=[0,0,0,g];
+Q=quatmultiply(quatmultiply(q,v),quatinv(q));
+disp(Q)
+yaw=0.01;
+roll=0.01;
+pitch=0.01;
+q_yaw = [cos(yaw/2), 0, 0, sin(yaw/2)];
+q_pitch = [cos(pitch/2), 0, sin(pitch/2), 0];
+q_roll = [cos(roll/2), sin(roll/2), 0, 0];
+q = quatmultiply(q_yaw, quatmultiply(q_pitch, q_roll));
+disp(q(2))

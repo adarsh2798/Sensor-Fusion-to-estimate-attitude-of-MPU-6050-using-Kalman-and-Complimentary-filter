@@ -1,0 +1,3 @@
+1) in euler KF implementation if we decrease Q values the noise significantly decreases and pattern almost matches IMUFILTER output but the values of pitch and roll are approx "half" of what it should be!!
+
+2) if decraese R then noise increases but value also incrsae whereas increase R implies less noise!!

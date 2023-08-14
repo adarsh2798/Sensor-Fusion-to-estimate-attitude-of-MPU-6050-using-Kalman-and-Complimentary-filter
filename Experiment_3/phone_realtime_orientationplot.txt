@@ -1,0 +1,71 @@
+% run in command propmp : openExample('shared_fusion_arduinoio/EstimateOrientationUsingInertialSensorFusionAndMPU9250Example')
+
+
+clc;
+g=9.8;
+%connect to phone and get accel data
+clear m
+m = mobiledev;
+m.AccelerationSensorEnabled = 1;
+m.Logging = 1;
+
+%initialize data for rolling plot
+data = zeros(200,1);
+
+%initialize plot
+figure(1)
+p = plot(data);
+axis([0 200 -15 15]);
+
+pause(1)
+tic
+viewer = HelperOrientationViewer('Title',{'Visualization of Orientation'});
+
+while (toc < 30)%run for 30 secs
+
+      %get new z coordinates
+      [a,~] = accellog(m);
+      
+      
+      if length(a) > 200
+        data = a(end-199:end,2);
+      else
+        data(1:length(a)) = a(:,2);
+      end
+
+      % redraw plot
+      p.YData = data;
+      drawnow
+      
+      roll=asin(a(:,1)/g);
+      pitch=atan(a(:,2)./a(:,3));
+      yaw=0;
+      A=zeros(size(pitch,1),1);
+      B=zeros(size(pitch,1),1);
+      C=zeros(size(pitch,1),1);
+      D=zeros(size(pitch,1),1);
+      
+     
+      
+      for qq =1:size(pitch,1)
+          qmul=quatmultiply([cos(pitch(qq,1)/2),sin(pitch(qq,1)/2),0,0],[cos(roll(qq,1)/2),0,sin(roll(qq,1)/2),0]);
+          A(qq,1)=qmul(1,1);
+          B(qq,1)=qmul(1,2);
+          C(qq,1)=qmul(1,3);
+          D(qq,1)=qmul(1,4);
+          
+          
+         
+          
+         
+      end
+      
+%       qpitch=quaternion(cos(pitch/2),sin(pitch/2),0,0);
+%       qroll=quaternion(cos(roll/2),0,sin(roll/2),0);
+      
+      q=quaternion(A,B,C,D);
+      orientation=q
+     for j = numel(orientation)
+        viewer(orientation(j));
+     end
+  end
